@@ -37,42 +37,44 @@ def get_sample_stations(user_type="user"):
 
 # ---------------- Logout Function ----------------
 def logout():
-    st.session_state.logged_in = False
-    st.session_state.role = None
-    st.session_state.username = None
-    st.session_state.show_login = False
-    st.session_state.show_register = False
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.experimental_rerun()
+
+# App routing logic
+if not st.session_state.get("logged_in"):
+    landing_page()
+
+elif st.session_state.role == "User":
+    user_dashboard()
+
+elif st.session_state.role == "Business":
+    business_dashboard()
 
 # ---------------- Landing Page ----------------
 def landing_page():
-    st.title("⚡ ChargeSmart - Smart EV Charging Assistant")
-    st.markdown("""
-Welcome to **ChargeSmart**, your EV charging optimization platform.
+    st.title("⚡ Welcome to ChargeSmart")
+    st.markdown("#### Accelerating India's EV future with smart infrastructure")
 
-💡 **What we offer:**
-- 🚗 Real-time station recommendations based on your battery & car
-- 📍 Location-based suggestions & maps
-- 📈 Dynamic wait time graphs
-- 🧰 Maintenance + analytics for charging station businesses
-    """)
-    col1, col2 = st.columns(2)
-    with col1:
+    if not st.session_state.get("show_login"):
         if st.button("🔐 Login"):
             st.session_state.show_login = True
-            st.session_state.show_register = False
-    with col2:
         if st.button("📝 Register"):
             st.session_state.show_register = True
-            st.session_state.show_login = False
+    else:
+        if st.session_state.get("show_login"):
+            login_form()
+        elif st.session_state.get("show_register"):
+            register_form()
 
 # ---------------- Login Form ----------------
 def login_form():
     st.subheader("🔐 Login")
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
-    role = st.radio("Login as", ["User", "Business"])
+    role = st.radio("Login as", ["User", "Business"], key="login_role")
 
-    if st.button("Login"):
+    if st.button("Login Now"):
         for user in predefined_accounts:
             if user["username"] == username and user["password"] == password and user["role"] == role:
                 st.session_state.logged_in = True
