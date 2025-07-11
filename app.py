@@ -1,12 +1,8 @@
-# ---------------- Predefined Users & Businesses ----------------
-users = [{"username": f"user{i}", "password": "123", "role": "User", "extra": f"EV Model {i}"} for i in range(1, 11)]
-businesses = [{"username": f"biz{i}", "password": "123", "role": "Business", "extra": f"Biz {i}"} for i in range(1, 11)]
-predefined_accounts = users + businesses
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import random
+from math import radians, cos, sin, asin, sqrt
 
 # ---------------- Session Init ----------------
 if "logged_in" not in st.session_state:
@@ -43,27 +39,22 @@ def logout():
 
 # ---------------- Landing Page ----------------
 def landing_page():
-    st.title("⚡ Welcome to ChargeSmart")
+    st.title("\u26a1 Welcome to ChargeSmart")
     st.markdown("#### Accelerating India's EV future with smart infrastructure")
 
-    # Show Login/Register buttons only if no form is shown
     if not st.session_state.get("show_login") and not st.session_state.get("show_register"):
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔐 Login"):
-                st.session_state.show_login = True
-        with col2:
-            if st.button("📝 Register"):
-                st.session_state.show_register = True
-
-    if st.session_state.get("show_login"):
+        if st.button("\ud83d\udd10 Login"):
+            st.session_state.show_login = True
+        if st.button("\ud83d\udcdd Register"):
+            st.session_state.show_register = True
+    elif st.session_state.get("show_login"):
         login_form()
     elif st.session_state.get("show_register"):
         register_form()
 
 # ---------------- Login Form ----------------
 def login_form():
-    st.subheader("🔐 Login")
+    st.subheader("\ud83d\udd10 Login")
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
     role = st.radio("Login as", ["User", "Business"], key="login_role")
@@ -74,54 +65,46 @@ def login_form():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.role = role
-                st.session_state.show_login = False
-                st.session_state.show_register = False
-                st.success("✅ Login successful!")
+                st.success("\u2705 Login successful!")
                 st.experimental_rerun()
         else:
-            st.error("❌ Invalid credentials")
+            st.error("\u274c Invalid credentials")
 
 # ---------------- Register Form ----------------
 def register_form():
-    st.subheader("📝 Registration (Disabled for demo)")
+    st.subheader("\ud83d\udcdd Registration (Disabled for demo)")
     st.info("Use predefined demo users:\n- Username: user1 to user10\n- Password: 123\n\nBusiness logins:\n- biz1 to biz10")
 
-# ---------------- User Dashboard ----------------
-from math import radians, cos, sin, asin, sqrt
-
-# Distance calculation function
+# ---------------- Utility ----------------
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Radius of Earth in km
+    R = 6371
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     return R * 2 * asin(sqrt(a))
 
-# Updated user dashboard with recommendation logic
+# ---------------- User Dashboard ----------------
 def user_dashboard():
-    st.title("🔌 Smart EV Recommendation Dashboard")
-    st.button("🚪 Logout", on_click=logout)
+    st.title("\ud83d\udd0c Smart EV Recommendation Dashboard")
+    st.button("\ud83d\udeaa Logout", on_click=logout)
 
-    # 🚗 Simulate user EV details
     battery_percent = 60
-    total_range = 200  # in km
+    total_range = 200
     current_range = battery_percent / 100 * total_range
-    green_limit = current_range * 0.66  # ~80%
-    yellow_limit = current_range * 0.85  # ~100%
+    green_limit = current_range * 0.66
+    yellow_limit = current_range * 0.85
     user_lat, user_lon = 13.08, 80.27
     user_plug_type = "CCS2"
 
     st.markdown(f"""
-    🔋 **Battery:** {battery_percent}%  
-    🛣️ **Estimated Range:** {int(current_range)} km  
-    🔌 **Plug Type:** {user_plug_type}
+    \ud83d\udd0b **Battery:** {battery_percent}%  
+    \ud83d\udeb3\ufe0f **Estimated Range:** {int(current_range)} km  
+    \ud83d\udd0c **Plug Type:** {user_plug_type}
     """)
 
-    # Generate stations
     df = get_sample_stations()
     df["Distance"] = df.apply(lambda row: haversine(user_lat, user_lon, row["lat"], row["lon"]), axis=1)
 
-    # Zone assignment logic
     def get_zone(row):
         if row["Distance"] > yellow_limit:
             return "Red"
@@ -132,98 +115,79 @@ def user_dashboard():
         return "Red"
 
     df["Zone"] = df.apply(get_zone, axis=1)
-    color_map = {"Green": "green", "Yellow": "orange", "Red": "red"}
-
-    st.subheader("📍 Charging Stations (Colored by Recommendation)")
+    st.subheader("\ud83d\udccd Charging Stations (Color-coded)")
     st.map(df[df["Zone"] != "Red"].rename(columns={"lat": "latitude", "lon": "longitude"}))
 
-    # Simulate station click
-    clicked = st.selectbox("⬇️ Simulate Station Click", df["Station"])
+    clicked = st.selectbox("\u2b07\ufe0f Simulate Station Click", df["Station"])
     selected = df[df["Station"] == clicked].iloc[0]
 
-    # Wait time chart
     wait_df = pd.DataFrame({
         "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
         "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
     })
-    st.subheader(f"📊 Wait Time Prediction: {clicked}")
+    st.subheader(f"\ud83d\udcca Wait Time Prediction: {clicked}")
     fig = px.line(wait_df, x="Time Slot", y="Wait Time", markers=True)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Info summary
     st.info(f"""
-📍 **Distance:** {selected['Distance']:.1f} km  
-🔌 **Charger Type:** {selected['Charger_Type']}  
-🟢 **Zone Status:** {selected['Zone']}  
-🅿️ **Available Slots:** {selected['Available_Slots']}  
-⏳ **Current Wait Time:** {selected['Avg_Wait']} min
+\ud83d\udccd **Distance:** {selected['Distance']:.1f} km  
+\ud83d\udd0c **Charger Type:** {selected['Charger_Type']}  
+\ud83d\udfe2 **Zone Status:** {selected['Zone']}  
+\ud83c\udd7f\ufe0f **Available Slots:** {selected['Available_Slots']}  
+\u23f3 **Current Wait Time:** {selected['Avg_Wait']} min
     """)
-    # Time slot booking simulation
-    st.subheader("🕒 Book a Time Slot")
+
+    st.subheader("\ud83d\udd52 Book a Time Slot")
     slot = st.selectbox("Select a time slot to book", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
-    if st.button("✅ Confirm Booking"):
+    if st.button("\u2705 Confirm Booking"):
         st.success(f"Booked **{clicked}** at **{slot}**!")
 
-    # Google Maps Directions
-    st.subheader("🗺️ Navigate to Station")
+    st.subheader("\ud83d\uddfc Navigate to Station")
     google_maps_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
-    st.markdown(f"[📍 Click here to open directions in Google Maps]({google_maps_url})", unsafe_allow_html=True)
-
-    
-
+    st.markdown(f"[\ud83d\udccd Click here for directions]({google_maps_url})", unsafe_allow_html=True)
 
 # ---------------- Business Dashboard ----------------
 def business_dashboard():
-    st.title("🏢 Business Charging Station Dashboard")
-    st.button("🚪 Logout", on_click=logout)
+    st.title("\ud83c\udfe2 Business Charging Station Dashboard")
+    st.button("\ud83d\udeaa Logout", on_click=logout)
 
-    # Simulate 15 stations registered by this business
     df = get_sample_stations("business")
-
-    st.subheader("📍 Map of Your Charging Stations")
+    st.subheader("\ud83d\udccd Your Registered Charging Stations")
     st.map(df.rename(columns={"lat": "latitude", "lon": "longitude"}))
 
-    # Station selection
-    clicked = st.selectbox("🔧 View station analytics for:", df["Station"])
+    clicked = st.selectbox("\ud83d\udd27 View station analytics:", df["Station"])
     selected = df[df["Station"] == clicked].iloc[0]
 
-    # Avg. charging time over day
     charge_df = pd.DataFrame({
         "Hour": [f"{i}-{i+2}" for i in range(8, 20, 2)],
         "Avg Charging Time (min)": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(6)]
     })
-
-    st.subheader(f"📈 Avg. Charging Duration Trend – {clicked}")
+    st.subheader(f"\ud83d\udcc8 Avg. Charging Duration – {clicked}")
     fig = px.bar(charge_df, x="Hour", y="Avg Charging Time (min)", color="Avg Charging Time (min)", height=350)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Info Summary
     st.info(f"""
-📍 **Station:** {selected['Station']}  
-🔌 **Charger Type:** {selected['Charger_Type']}  
-🅿️ **Available Slots:** {selected['Available_Slots']}  
-⏳ **Avg Wait Time:** {selected['Avg_Wait']} mins  
-🧰 **Maintenance Package:** Enabled  
-📶 **IoT Monitoring:** Active  
+\ud83d\udccd **Station:** {selected['Station']}  
+\ud83d\udd0c **Charger Type:** {selected['Charger_Type']}  
+\ud83c\udd7f\ufe0f **Available Slots:** {selected['Available_Slots']}  
+\u23f3 **Avg Wait Time:** {selected['Avg_Wait']} mins  
+\ud83d\udee0\ufe0f **Maintenance Package:** Enabled  
+\ud83d\udcf6 **IoT Monitoring:** Active
     """)
 
-    # Maintenance/Package Features
-    st.subheader("🛠️ Maintenance & Insights Package")
+    st.subheader("\ud83d\udee0\ufe0f Maintenance Insights")
     st.markdown("""
-- ✅ Daily IoT monitoring for port status  
-- 🔄 Predictive alerts for wear & tear  
-- 📅 Auto-scheduling of technician visits (every 15 days)  
-- 📊 Monthly energy usage reports  
-- ⚙️ Analytics on average wait time and station efficiency  
+- \u2705 Daily IoT status monitoring  
+- \ud83d\udd04 Predictive maintenance alerts  
+- \ud83d\uddd3\ufe0f Technician visit every 15 days  
+- \ud83d\udcca Monthly energy report  
+- \u2699\ufe0f Station usage analytics
     """)
 
-
-# App routing logic
+# ---------------- Routing Logic ----------------
 if not st.session_state.get("logged_in"):
     landing_page()
-
 elif st.session_state.role == "User":
     user_dashboard()
-
 elif st.session_state.role == "Business":
     business_dashboard()
