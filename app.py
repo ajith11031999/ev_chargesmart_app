@@ -34,22 +34,17 @@ def landing_page():
         login_form()
     elif st.session_state.show_register:
         register_form()
-def login_form():
-    st.subheader("🔐 Login to Continue")
-    username = st.text_input("Username", key="login_user")
-    password = st.text_input("Password", type="password", key="login_pass")
-    role = st.radio("Login as", ["User", "Business"], key="login_role")
-
-    if st.button("Login Now"):
-        for user in predefined_accounts:
-            if user["username"] == username and user["password"] == password and user["role"] == role:
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.role = role
-                st.success("✅ Login successful! Redirecting...")
-                st.experimental_rerun()
-                return
+if st.button("Login Now"):
+    matched = next((user for user in predefined_accounts if user["username"] == username and user["password"] == password and user["role"] == role), None)
+    if matched:
+        st.session_state.logged_in = True
+        st.session_state.username = matched["username"]
+        st.session_state.role = matched["role"]
+        st.success("✅ Login successful! Redirecting...")
+        st.experimental_rerun()
+    else:
         st.error("❌ Invalid credentials")
+
 def register_form():
     st.subheader("📝 Registration (Disabled in Demo)")
     st.info("Use demo accounts:\n\n- user1 to user10 / 123\n- biz1 to biz10 / 123")
@@ -181,7 +176,10 @@ def business_dashboard():
 
 if not st.session_state.get("logged_in"):
     landing_page()
-elif st.session_state.role == "User":
-    user_dashboard()
-elif st.session_state.role == "Business":
-    business_dashboard()
+else:
+    # Redirect only once after login
+    if st.session_state.role == "User":
+        user_dashboard()
+    elif st.session_state.role == "Business":
+        business_dashboard()
+
