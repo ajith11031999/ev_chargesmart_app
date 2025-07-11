@@ -34,6 +34,7 @@ def landing_page():
         login_form()
     elif st.session_state.show_register:
         register_form()
+
 def login_form():
     st.subheader("🔐 Login")
     username = st.text_input("Username", key="login_user")
@@ -47,7 +48,7 @@ def login_form():
             st.session_state.username = matched["username"]
             st.session_state.role = matched["role"]
             st.success("✅ Login successful! Redirecting...")
-            st.experimental_rerun()  # THIS reruns the app to go to the dashboard
+            st.rerun()  # ✅ Safely rerun to re-render with login
         else:
             st.error("❌ Invalid credentials")
 
@@ -180,12 +181,11 @@ def business_dashboard():
 """)
 # ---------------- App Routing Logic ----------------
 
-if not st.session_state.get("logged_in"):
-    landing_page()
-else:
-    # Redirect only once after login
+if st.session_state.get("logged_in"):
     if st.session_state.role == "User":
         user_dashboard()
     elif st.session_state.role == "Business":
         business_dashboard()
+else:
+    landing_page()
 
