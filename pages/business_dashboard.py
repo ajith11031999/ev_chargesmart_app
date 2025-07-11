@@ -1,56 +1,47 @@
 import streamlit as st
-if not st.session_state.get("logged_in") or st.session_state.get("role") != "Business":
-    st.warning("🚫 Unauthorized access. Please log in as a business.")
-    st.stop()
-
 import pandas as pd
 import plotly.express as px
 import random
 
-# Logged in business
-business_user = st.session_state.get("username", "Unknown")
+# 🔒 Auth check
+if not st.session_state.get("logged_in") or st.session_state.get("role") != "Business":
+    st.warning("🚫 Unauthorized access. Please log in.")
+    st.stop()
 
-# --- Simulated Charging Stations Registered by Business ---
-stations = [
-    {"id": 1, "name": "GreenCharge - Anna Nagar", "avg_wait": 10, "availability": 3, "type": "CCS2", "location": "Chennai"},
-    {"id": 2, "name": "GreenCharge - T Nagar", "avg_wait": 28, "availability": 0, "type": "Type2", "location": "Chennai"},
-    {"id": 3, "name": "GreenCharge - Nungambakkam", "avg_wait": 16, "availability": 1, "type": "CCS2", "location": "Chennai"},
-    {"id": 4, "name": "GreenCharge - OMR", "avg_wait": 22, "availability": 2, "type": "Type2", "location": "Chennai"},
-    {"id": 5, "name": "GreenCharge - Velachery", "avg_wait": 5, "availability": 4, "type": "CCS2", "location": "Chennai"},
-    {"id": 6, "name": "GreenCharge - Tambaram", "avg_wait": 40, "availability": 0, "type": "CCS2", "location": "Chennai"},
-]
-
-# --- UI Starts ---
 st.title("📊 Business Dashboard")
-st.markdown(f"Welcome **{business_user}**. Here is your station performance overview.")
 
-# --- Station Table ---
-st.subheader("📍 Your Registered Charging Machines")
-station_df = pd.DataFrame(stations)
-station_df["Status"] = station_df["availability"].apply(lambda x: "🟢 Available" if x > 0 else "🔴 Full")
-st.dataframe(station_df[["name", "type", "avg_wait", "availability", "Status"]], use_container_width=True)
+# --- Simulated registered stations
+stations = pd.DataFrame({
+    "Station": [f"MyStation {i+1}" for i in range(15)],
+    "Avg_Wait": [random.randint(5, 35) for _ in range(15)],
+    "Charge_Time": [random.randint(15, 45) for _ in range(15)],
+    "lat": [13.08 + random.uniform(-0.03, 0.03) for _ in range(15)],
+    "lon": [80.27 + random.uniform(-0.03, 0.03) for _ in range(15)],
+})
 
-# --- Dynamic Wait Time Graph ---
-st.subheader("📈 Avg. Wait Time per Station")
-fig = px.bar(station_df, x="name", y="avg_wait", color="avg_wait", title="Average Wait Time (mins)", color_continuous_scale="Turbo")
+# Map
+st.subheader("🗺️ Your Station Locations")
+selected_station = st.map(stations.rename(columns={"lat": "latitude", "lon": "longitude"}), use_container_width=True)
+
+# Simulated click via dropdown for now
+clicked_station = st.selectbox("⬇️ Simulated click: Choose a station", stations["Station"])
+selected_data = stations[stations["Station"] == clicked_station].iloc[0]
+
+# Graph
+st.subheader(f"📈 Avg Charging Time - {selected_data['Station']}")
+graph_data = pd.DataFrame({
+    "Hour": [f"{i}h" for i in range(8, 21, 2)],
+    "Charging Time": [selected_data["Charge_Time"] + random.randint(-5, 5) for _ in range(7)]
+})
+
+fig = px.bar(graph_data, x="Hour", y="Charging Time", color="Charging Time", title="Average Charging Duration by Hour")
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Maintenance Info ---
-st.subheader("🧰 Scheduled Maintenance & IoT Services")
-st.markdown("""
-- 🔧 **Monthly Health Check** included
-- 🛰️ **IoT Monitoring Kit** installed
-- 📦 **Smart Analytics Plan** active
-- 💬 Predictive maintenance alerts via dashboard
-
-For assistance, contact: **support@chargesmart.in**
+# Info
+st.success(f"""
+**Station:** {selected_data['Station']}  
+**Avg Wait Time:** {selected_data['Avg_Wait']} mins  
+**Avg Charge Duration:** {selected_data['Charge_Time']} mins  
 """)
 
-# --- Location Display (simulated) ---
-st.subheader("🗺️ Station Coverage")
-locations = pd.DataFrame({
-    "Station": [s["name"] for s in stations],
-    "Latitude": [13.08 + random.uniform(-0.05, 0.05) for _ in stations],
-    "Longitude": [80.27 + random.uniform(-0.05, 0.05) for _ in stations],
-})
-st.map(locations.rename(columns={"Latitude": "lat", "Longitude": "lon"}))
+st.markdown("📦 **Maintenance Package**: Active  \n🛠️ Monthly servicing scheduled  \n📊 IoT Monitoring Enabled")
