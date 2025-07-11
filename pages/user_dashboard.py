@@ -1,4 +1,7 @@
 import streamlit as st
+if not st.session_state.get("logged_in") or st.session_state.get("role") != "User":
+    st.warning("🚫 Unauthorized access. Please log in as a user.")
+    st.stop()
 import pandas as pd
 import plotly.express as px
 import random

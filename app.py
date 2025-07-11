@@ -1,35 +1,28 @@
-from utils.auth import logout_user
 import streamlit as st
 from utils.helpers import init_db
-from pages.landing import show_landing
-from pages.user_dashboard import show_user_dashboard
-from pages.business_dashboard import show_business_dashboard
+from utils.auth import logout_user
 
+# Load CSS
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
 local_css("assets/style.css")
 
-# Set up Streamlit page settings
-st.set_page_config(page_title="ChargeSmart", layout="wide")
-init_db()  # Initialize database (only creates if not present)
-
-# Check login state
+# Session initialization
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.role = None
 
-# Routing based on login status and user role
+# Initialize DB
+init_db()
+
+# Redirect if logged in
 if st.session_state.logged_in:
-    role = st.session_state.get("role")
-    if role == "User":
-        show_user_dashboard()
-    elif role == "Business":
-        show_business_dashboard()
-    else:
-        st.error("Unknown role. Please log out and try again.")
+    if st.session_state.role == "User":
+        st.switch_page("pages/user_dashboard.py")
+    elif st.session_state.role == "Business":
+        st.switch_page("pages/business_dashboard.py")
 else:
-    show_landing()
-# Add logout button in top-right corner
-if st.session_state.get("logged_in"):
-    st.sidebar.button("🚪 Logout", on_click=lambda: logout_user())
+    # Show landing page (login/registration)
+    import landing
