@@ -41,31 +41,25 @@ def logout():
         del st.session_state[key]
     st.experimental_rerun()
 
-# App routing logic
-if not st.session_state.get("logged_in"):
-    landing_page()
-
-elif st.session_state.role == "User":
-    user_dashboard()
-
-elif st.session_state.role == "Business":
-    business_dashboard()
-
 # ---------------- Landing Page ----------------
 def landing_page():
     st.title("⚡ Welcome to ChargeSmart")
     st.markdown("#### Accelerating India's EV future with smart infrastructure")
 
-    if not st.session_state.get("show_login"):
-        if st.button("🔐 Login"):
-            st.session_state.show_login = True
-        if st.button("📝 Register"):
-            st.session_state.show_register = True
-    else:
-        if st.session_state.get("show_login"):
-            login_form()
-        elif st.session_state.get("show_register"):
-            register_form()
+    # Show Login/Register buttons only if no form is shown
+    if not st.session_state.get("show_login") and not st.session_state.get("show_register"):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔐 Login"):
+                st.session_state.show_login = True
+        with col2:
+            if st.button("📝 Register"):
+                st.session_state.show_register = True
+
+    if st.session_state.get("show_login"):
+        login_form()
+    elif st.session_state.get("show_register"):
+        register_form()
 
 # ---------------- Login Form ----------------
 def login_form():
@@ -80,6 +74,8 @@ def login_form():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.role = role
+                st.session_state.show_login = False
+                st.session_state.show_register = False
                 st.success("✅ Login successful!")
                 st.experimental_rerun()
         else:
@@ -221,3 +217,13 @@ def business_dashboard():
 - ⚙️ Analytics on average wait time and station efficiency  
     """)
 
+
+# App routing logic
+if not st.session_state.get("logged_in"):
+    landing_page()
+
+elif st.session_state.role == "User":
+    user_dashboard()
+
+elif st.session_state.role == "Business":
+    business_dashboard()
