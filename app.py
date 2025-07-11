@@ -39,14 +39,22 @@ def logout():
 
 # ---------------- Landing Page ----------------
 def landing_page():
-    st.title("\u26a1 Welcome to ChargeSmart")
+    st.title("⚡ Welcome to ChargeSmart")
     st.markdown("#### Accelerating India's EV future with smart infrastructure")
 
+    # Show buttons unless one of the forms is active
     if not st.session_state.get("show_login") and not st.session_state.get("show_register"):
-        if st.button("\ud83d\udd10 Login"):
-            st.session_state.show_login = True
-        if st.button("\ud83d\udcdd Register"):
-            st.session_state.show_register = True
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔐 Login"):
+                st.session_state.show_login = True
+                st.experimental_rerun()
+        with col2:
+            if st.button("📝 Register"):
+                st.session_state.show_register = True
+                st.experimental_rerun()
+
+    # Show login or register form
     elif st.session_state.get("show_login"):
         login_form()
     elif st.session_state.get("show_register"):
@@ -54,7 +62,7 @@ def landing_page():
 
 # ---------------- Login Form ----------------
 def login_form():
-    st.subheader("\ud83d\udd10 Login")
+    st.subheader("🔐 Login")
     username = st.text_input("Username", key="login_user")
     password = st.text_input("Password", type="password", key="login_pass")
     role = st.radio("Login as", ["User", "Business"], key="login_role")
@@ -65,10 +73,12 @@ def login_form():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.role = role
-                st.success("\u2705 Login successful!")
+                st.session_state.show_login = False
+                st.session_state.show_register = False
+                st.success("✅ Login successful!")
                 st.experimental_rerun()
         else:
-            st.error("\u274c Invalid credentials")
+            st.error("❌ Invalid credentials")
 
 # ---------------- Register Form ----------------
 def register_form():
@@ -191,3 +201,4 @@ elif st.session_state.role == "User":
     user_dashboard()
 elif st.session_state.role == "Business":
     business_dashboard()
+
