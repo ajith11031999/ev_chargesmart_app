@@ -89,46 +89,133 @@ def register_form():
     st.info("Use predefined demo users:\n- Username: user1 to user10\n- Password: 123\n\nBusiness logins:\n- biz1 to biz10")
 
 # ---------------- User Dashboard ----------------
+from math import radians, cos, sin, asin, sqrt
+
+# Distance calculation function
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # Radius of Earth in km
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    return R * 2 * asin(sqrt(a))
+
+# Updated user dashboard with recommendation logic
 def user_dashboard():
-    st.title("🔌 EV Charging Station Finder")
+    st.title("🔌 Smart EV Recommendation Dashboard")
     st.button("🚪 Logout", on_click=logout)
 
+    # 🚗 Simulate user EV details
+    battery_percent = 60
+    total_range = 200  # in km
+    current_range = battery_percent / 100 * total_range
+    green_limit = current_range * 0.66  # ~80%
+    yellow_limit = current_range * 0.85  # ~100%
+    user_lat, user_lon = 13.08, 80.27
+    user_plug_type = "CCS2"
+
+    st.markdown(f"""
+    🔋 **Battery:** {battery_percent}%  
+    🛣️ **Estimated Range:** {int(current_range)} km  
+    🔌 **Plug Type:** {user_plug_type}
+    """)
+
+    # Generate stations
     df = get_sample_stations()
+    df["Distance"] = df.apply(lambda row: haversine(user_lat, user_lon, row["lat"], row["lon"]), axis=1)
 
-    st.subheader("📍 Map of Nearby Charging Stations")
-    st.map(df.rename(columns={"lat": "latitude", "lon": "longitude"}))
+    # Zone assignment logic
+    def get_zone(row):
+        if row["Distance"] > yellow_limit:
+            return "Red"
+        elif row["Distance"] <= green_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
+            return "Green"
+        elif row["Distance"] <= yellow_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
+            return "Yellow"
+        return "Red"
 
-    clicked = st.selectbox("⬇️ Simulate station click", df["Station"])
+    df["Zone"] = df.apply(get_zone, axis=1)
+    color_map = {"Green": "green", "Yellow": "orange", "Red": "red"}
+
+    st.subheader("📍 Charging Stations (Colored by Recommendation)")
+    st.map(df[df["Zone"] != "Red"].rename(columns={"lat": "latitude", "lon": "longitude"}))
+
+    # Simulate station click
+    clicked = st.selectbox("⬇️ Simulate Station Click", df["Station"])
     selected = df[df["Station"] == clicked].iloc[0]
 
+    # Wait time chart
     wait_df = pd.DataFrame({
         "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
         "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
     })
-
-    st.subheader(f"📊 Predicted Wait Time: {clicked}")
+    st.subheader(f"📊 Wait Time Prediction: {clicked}")
     fig = px.line(wait_df, x="Time Slot", y="Wait Time", markers=True)
     st.plotly_chart(fig, use_container_width=True)
 
+    # Info summary
     st.info(f"""
+📍 **Distance:** {selected['Distance']:.1f} km  
 🔌 **Charger Type:** {selected['Charger_Type']}  
+🟢 **Zone Status:** {selected['Zone']}  
 🅿️ **Available Slots:** {selected['Available_Slots']}  
-⏱️ **Current Wait Time:** ~{selected['Avg_Wait']} min  
-📍 **Distance Estimate:** ~{random.randint(2, 10)} km
-""")
+⏳ **Current Wait Time:** {selected['Avg_Wait']} min
+    """)
+    # Time slot booking simulation
+    st.subheader("🕒 Book a Time Slot")
+    slot = st.selectbox("Select a time slot to book", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
+    if st.button("✅ Confirm Booking"):
+        st.success(f"Booked **{clicked}** at **{slot}**!")
+
+    # Google Maps Directions
+    st.subheader("🗺️ Navigate to Station")
+    google_maps_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
+    st.markdown(f"[📍 Click here to open directions in Google Maps]({google_maps_url})", unsafe_allow_html=True)
+
+    
+
 
 # ---------------- Business Dashboard ----------------
 def business_dashboard():
-    st.title("🏢 Business Analytics Dashboard")
+    st.title("🏢 Business Charging Station Dashboard")
     st.button("🚪 Logout", on_click=logout)
 
+    # Simulate 15 stations registered by this business
     df = get_sample_stations("business")
 
-    st.subheader("📍 Your Registered Stations")
+    st.subheader("📍 Map of Your Charging Stations")
     st.map(df.rename(columns={"lat": "latitude", "lon": "longitude"}))
 
-    clicked = st.selectbox("⬇️ Simulate station selection", df["Station"])
+    # Station selection
+    clicked = st.selectbox("🔧 View station analytics for:", df["Station"])
     selected = df[df["Station"] == clicked].iloc[0]
 
+    # Avg. charging time over day
     charge_df = pd.DataFrame({
-        "Hour
+        "Hour": [f"{i}-{i+2}" for i in range(8, 20, 2)],
+        "Avg Charging Time (min)": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(6)]
+    })
+
+    st.subheader(f"📈 Avg. Charging Duration Trend – {clicked}")
+    fig = px.bar(charge_df, x="Hour", y="Avg Charging Time (min)", color="Avg Charging Time (min)", height=350)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Info Summary
+    st.info(f"""
+📍 **Station:** {selected['Station']}  
+🔌 **Charger Type:** {selected['Charger_Type']}  
+🅿️ **Available Slots:** {selected['Available_Slots']}  
+⏳ **Avg Wait Time:** {selected['Avg_Wait']} mins  
+🧰 **Maintenance Package:** Enabled  
+📶 **IoT Monitoring:** Active  
+    """)
+
+    # Maintenance/Package Features
+    st.subheader("🛠️ Maintenance & Insights Package")
+    st.markdown("""
+- ✅ Daily IoT monitoring for port status  
+- 🔄 Predictive alerts for wear & tear  
+- 📅 Auto-scheduling of technician visits (every 15 days)  
+- 📊 Monthly energy usage reports  
+- ⚙️ Analytics on average wait time and station efficiency  
+    """)
+
