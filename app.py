@@ -34,16 +34,22 @@ def landing_page():
         login_form()
     elif st.session_state.show_register:
         register_form()
-if st.button("Login Now"):
-    matched = next((user for user in predefined_accounts if user["username"] == username and user["password"] == password and user["role"] == role), None)
-    if matched:
-        st.session_state.logged_in = True
-        st.session_state.username = matched["username"]
-        st.session_state.role = matched["role"]
-        st.success("✅ Login successful! Redirecting...")
-        st.experimental_rerun()
-    else:
-        st.error("❌ Invalid credentials")
+def login_form():
+    st.subheader("🔐 Login")
+    username = st.text_input("Username", key="login_user")
+    password = st.text_input("Password", type="password", key="login_pass")
+    role = st.radio("Login as", ["User", "Business"], key="login_role")
+
+    if st.button("Login Now"):
+        matched = next((user for user in predefined_accounts if user["username"] == username and user["password"] == password and user["role"] == role), None)
+        if matched:
+            st.session_state.logged_in = True
+            st.session_state.username = matched["username"]
+            st.session_state.role = matched["role"]
+            st.success("✅ Login successful! Redirecting...")
+            st.experimental_rerun()  # THIS reruns the app to go to the dashboard
+        else:
+            st.error("❌ Invalid credentials")
 
 def register_form():
     st.subheader("📝 Registration (Disabled in Demo)")
