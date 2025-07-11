@@ -1,4 +1,3 @@
-
 import streamlit as st
 import sqlite3
 
@@ -17,15 +16,15 @@ def login_user():
             st.session_state.logged_in = True
             st.session_state["username"] = username
             st.session_state["role"] = role
-            st.success("Login Successful! 🎉")
+            st.success("Login successful!")
         else:
-            st.error("Invalid credentials ❌")
+            st.error("Invalid credentials.")
 
 def register_user():
     role = st.radio("Register As", ["User", "Business"], key="register_role")
     username = st.text_input("New Username", key="reg_user")
     password = st.text_input("New Password", type="password", key="reg_pass")
-    extra = st.text_input("Car Model (User) / Station Name (Business)", key="reg_extra")
+    extra = st.text_input("Car Model (User) or Station Name (Business)", key="reg_extra")
     if st.button("Register", key="reg_btn"):
         conn = sqlite3.connect("chargesmart.db")
         cursor = conn.cursor()
@@ -33,4 +32,4 @@ def register_user():
         cursor.execute(f"INSERT INTO {table} (username, password, extra) VALUES (?, ?, ?)", (username, password, extra))
         conn.commit()
         conn.close()
-        st.success("Registered Successfully! 🎉 Please log in.")
+        st.success("Registration complete. Please login.")
