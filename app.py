@@ -4,119 +4,44 @@ import plotly.express as px
 import random
 from math import radians, cos, sin, asin, sqrt
 
-# ---------------- Session Init ----------------
+# --- Session Initialization ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.role = None
     st.session_state.username = None
     st.session_state.show_login = False
     st.session_state.show_register = False
-# ---------------- Predefined Users & Businesses ----------------
+
+# --- Demo Accounts ---
 users = [{"username": f"user{i}", "password": "123", "role": "User", "extra": f"EV Model {i}"} for i in range(1, 11)]
 businesses = [{"username": f"biz{i}", "password": "123", "role": "Business", "extra": f"Biz {i}"} for i in range(1, 11)]
 predefined_accounts = users + businesses
 
+
 def landing_page():
-    st.markdown("""
-        <style>
-        .topnav {
-            overflow: hidden;
-            background-color: #333;
-        }
-
-        .topnav a {
-            float: left;
-            display: block;
-            color: #f2f2f2;
-            text-align: center;
-            padding: 14px 16px;
-            text-decoration: none;
-            font-size: 17px;
-        }
-
-        .topnav a:hover {
-            background-color: #ddd;
-            color: black;
-        }
-
-        .topnav .icon {
-            display: none;
-        }
-
-        @media screen and (max-width: 600px) {
-            .topnav a:not(:first-child) {display: none;}
-            .topnav a.icon {
-                float: right;
-                display: block;
-            }
-        }
-
-        @media screen and (max-width: 600px) {
-            .topnav.responsive {position: relative;}
-            .topnav.responsive .icon {
-                position: absolute;
-                right: 0;
-                top: 0;
-            }
-            .topnav.responsive a {
-                float: none;
-                display: block;
-                text-align: left;
-            }
-        }
-        </style>
-
-        <div class="topnav" id="myTopnav">
-          <a href="#home" onclick="document.getElementById('main').scrollIntoView();">Home</a>
-          <a href="#" onclick="window.parent.postMessage('showLogin', '*');">Login</a>
-          <a href="#" onclick="window.parent.postMessage('showRegister', '*');">Register</a>
-          <a href="javascript:void(0);" class="icon" onclick="toggleNav()">
-            <i>☰</i>
-          </a>
-        </div>
-
-        <script>
-        function toggleNav() {
-          var x = document.getElementById("myTopnav");
-          if (x.className === "topnav") {
-            x.className += " responsive";
-          } else {
-            x.className = "topnav";
-          }
-        }
-
-        window.addEventListener("message", (event) => {
-          if (event.data === "showLogin") {
-            window.parent.postMessage({ type: "trigger_login" }, "*");
-          }
-          if (event.data === "showRegister") {
-            window.parent.postMessage({ type: "trigger_register" }, "*");
-          }
-        });
-        </script>
-    """, unsafe_allow_html=True)
-
     st.title("⚡ Welcome to ChargeSmart")
-    st.markdown("#### Accelerating India's EV future with smart infrastructure")
+    st.markdown("#### Revolutionizing Electric Vehicle Charging Infrastructure")
+    st.markdown("🚗 Intelligent routing | 🔌 Plug-type matching | 🟢 Real-time availability | 📈 Predictive wait times")
 
-    # Toggle login/register state if message is received
-    js_trigger = st.experimental_get_query_params().get("trigger")
-    if js_trigger == ["login"]:
-        st.session_state.show_login = True
-    elif js_trigger == ["register"]:
-        st.session_state.show_register = True
-
-    # Display the actual forms
-    if st.session_state.get("show_login"):
+    if not st.session_state.show_login and not st.session_state.show_register:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔐 Login"):
+                st.session_state.show_login = True
+        with col2:
+            if st.button("📝 Register"):
+                st.session_state.show_register = True
+    elif st.session_state.show_login:
         login_form()
-    elif st.session_state.get("show_register"):
+    elif st.session_state.show_register:
         register_form()
 
+
 def login_form():
-    st.subheader("🔐 Login to Continue")
-    username = st.text_input("Username", key="login_user")
-    password = st.text_input("Password", type="password", key="login_pass")
-    role = st.radio("Login as", ["User", "Business"], key="login_role")
+    st.subheader("🔐 Login")
+    role = st.radio("Login as", ["User", "Business"])
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
     if st.button("Login Now"):
         for user in predefined_accounts:
@@ -124,18 +49,23 @@ def login_form():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.role = role
-                st.success("✅ Login successful! Redirecting...")
+                st.success("🎉 Login Successful")
                 st.experimental_rerun()
-                return
-        st.error("❌ Invalid credentials")
+        else:
+            st.error("❌ Invalid credentials")
 
 def register_form():
-    st.subheader("📝 Registration (Disabled in Demo)")
-    st.info("Use demo accounts:\n\n- user1 to user10 / 123\n- biz1 to biz10 / 123")
+    st.subheader("📝 Registration (Disabled in demo)")
+    st.info("Try:\n- user1 to user10\n- biz1 to biz10\n- Password: 123")
 
 # ---------------- Utility Function ----------------
+def logout():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.experimental_rerun()
+
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Radius of Earth in km
+    R = 6371
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
@@ -263,10 +193,11 @@ def business_dashboard():
 
 # ---------------- App Routing Logic ----------------
 
-if not st.session_state.get("logged_in"):
+if st.session_state.logged_in:
+    if st.session_state.role == "User":
+        user_dashboard()
+    elif st.session_state.role == "Business":
+        business_dashboard()
+else:
     landing_page()
-elif st.session_state.role == "User":
-    user_dashboard()
-elif st.session_state.role == "Business":
-    business_dashboard()
 
