@@ -1,3 +1,8 @@
+# ---------------- Predefined Users & Businesses ----------------
+users = [{"username": f"user{i}", "password": "123", "role": "User", "extra": f"EV Model {i}"} for i in range(1, 11)]
+businesses = [{"username": f"biz{i}", "password": "123", "role": "Business", "extra": f"Biz {i}"} for i in range(1, 11)]
+predefined_accounts = users + businesses
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -75,7 +80,8 @@ def login_form():
                 st.session_state.role = role
                 st.success("✅ Login successful!")
                 st.experimental_rerun()
-        st.error("❌ Invalid credentials")
+        else:
+            st.error("❌ Invalid credentials")
 
 # ---------------- Register Form ----------------
 def register_form():
