@@ -11,6 +11,13 @@ if "logged_in" not in st.session_state:
     st.session_state.username = None
     st.session_state.show_login = False
     st.session_state.show_register = False
+
+# ---------------- Logout Function ----------------
+def logout():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()  # rerun the app after logout
+
 # ---------------- Predefined Users & Businesses ----------------
 users = [{"username": f"user{i}", "password": "123", "role": "User", "extra": f"EV Model {i}"} for i in range(1, 11)]
 businesses = [{"username": f"biz{i}", "password": "123", "role": "Business", "extra": f"Biz {i}"} for i in range(1, 11)]
