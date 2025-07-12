@@ -83,68 +83,96 @@ def get_sample_stations(user_type="user"):
         })
     return pd.DataFrame(station_data)
 def user_dashboard():
-    st.title("🔌 Smart EV Recommendation Dashboard")
+    import pickle
+
+    st.title("🔌 ML-based EV Charging Station Recommendation")
     st.button("🚪 Logout", on_click=logout)
 
-    # Simulated User Info
+    # User Battery Details
     battery_percent = 60
-    total_range = 200  # km
+    total_range = 200
     current_range = battery_percent / 100 * total_range
-    green_limit = current_range * 0.66
-    yellow_limit = current_range * 0.85
+    green_limit = 80
+    yellow_limit = 100
     user_lat, user_lon = 13.08, 80.27
-    user_plug_type = "CCS2"
+    user_battery_type = "Lithium-ion 48V"
 
     st.markdown(f"""
     🔋 **Battery:** {battery_percent}%  
     🛣️ **Range Left:** {int(current_range)} km  
-    🔌 **Charger Type:** {user_plug_type}
+    🔋 **Battery Type:** {user_battery_type}
     """)
 
+    # Load model & encoders
+    with open("/mnt/data/zone_predictor.pkl", "rb") as f:
+        model = pickle.load(f)
+    with open("/mnt/data/battery_encoder.pkl", "rb") as f:
+        battery_encoder = pickle.load(f)
+    with open("/mnt/data/status_encoder.pkl", "rb") as f:
+        status_encoder = pickle.load(f)
+
+    # Generate station data
     df = get_sample_stations()
     df["Distance"] = df.apply(lambda row: haversine(user_lat, user_lon, row["lat"], row["lon"]), axis=1)
+    df["Battery_Type"] = random.choices(["Lithium-ion 48V", "Nickel-MH", "Lead-Acid"], k=len(df))
+    df["Status"] = random.choices(["online", "offline", "maintenance"], k=len(df))
 
-    def get_zone(row):
-        if row["Distance"] > yellow_limit:
-            return "Red"
-        elif row["Distance"] <= green_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
-            return "Green"
-        elif row["Distance"] <= yellow_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
-            return "Yellow"
-        return "Red"
+    # Encode inputs
+    X = pd.DataFrame({
+        "Distance": df["Distance"],
+        "Available_Slots": df["Available_Slots"],
+        "Avg_Wait": df["Avg_Wait"],
+        "Battery_Type": battery_encoder.transform(df["Battery_Type"]),
+        "Status": status_encoder.transform(df["Status"])
+    })
 
-    df["Zone"] = df.apply(get_zone, axis=1)
+    # Predict zones
+    df["Zone"] = model.predict(X)
 
-    st.subheader("📍 Nearby Charging Stations (Recommended)")
-    st.map(df[df["Zone"] != "Red"].rename(columns={"lat": "latitude", "lon": "longitude"}))
+    # Map colors
+    color_map = {"Green": "green", "Yellow": "orange", "Red": "red"}
+    df["color"] = df["Zone"].map(color_map)
 
-    clicked = st.selectbox("⬇️ Select a Station", df["Station"])
+    # Show map with all stations
+    st.subheader("📍 Charging Stations (ML-based Recommendation)")
+    st.map(df.rename(columns={"lat": "latitude", "lon": "longitude"}))
+
+    # Simulated Click
+    clicked = st.selectbox("⬇️ Choose a Station", df["Station"])
     selected = df[df["Station"] == clicked].iloc[0]
 
+    # Dynamic Graph
     wait_df = pd.DataFrame({
         "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
         "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
     })
-    st.subheader(f"📊 Wait Time Forecast: {clicked}")
+
+    st.subheader(f"📊 Wait Time Forecast – {clicked}")
     fig = px.line(wait_df, x="Time Slot", y="Wait Time", markers=True)
     st.plotly_chart(fig, use_container_width=True)
 
+    # Info Card
     st.info(f"""
 📍 **Distance:** {selected['Distance']:.1f} km  
 🔌 **Charger Type:** {selected['Charger_Type']}  
-🟢 **Zone:** {selected['Zone']}  
+🔋 **Battery Type Match:** {selected['Battery_Type']}  
+⚙️ **Status:** {selected['Status']}  
 🅿️ **Available Slots:** {selected['Available_Slots']}  
-⏳ **Current Wait:** {selected['Avg_Wait']} mins
-    """)
+🟢 **Zone (ML):** {selected['Zone']}  
+⏳ **Avg Wait Time:** {selected['Avg_Wait']} mins  
+""")
 
+    # Booking
     st.subheader("🕒 Book a Time Slot")
     slot = st.selectbox("Choose a time slot", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
     if st.button("✅ Book Now"):
-        st.success(f"Booked **{clicked}** at **{slot}**!")
+        st.success(f"✅ Booked **{clicked}** at **{slot}**")
 
+    # Navigation
     st.subheader("🗺️ Google Maps Navigation")
     maps_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
     st.markdown(f"[📍 Get Directions]({maps_url})", unsafe_allow_html=True)
+
 def business_dashboard():
     st.title("🏢 Business Charging Station Dashboard")
     st.button("🚪 Logout", on_click=logout)
