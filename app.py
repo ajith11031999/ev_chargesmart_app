@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import random
 from math import radians, cos, sin, asin, sqrt
+import folium
+from streamlit_folium import st_folium
 
 # ---------------- Session Init ----------------
 if "logged_in" not in st.session_state:
