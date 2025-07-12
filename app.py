@@ -71,55 +71,18 @@ def haversine(lat1, lon1, lat2, lon2):
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     return R * 2 * asin(sqrt(a))
-
 # ---------------- Sample Station Data ----------------
 def get_sample_stations(user_type="user"):
     station_data = []
-
-    # Green zone: near, low wait time, available slots
-    for i in range(3):
+    for i in range(15):
         station_data.append({
-            "Station": f"Green Station {i+1}",
-            "Avg_Wait": random.randint(5, 10),
-            "Available_Slots": random.randint(2, 5),
-            "Charger_Type": "CCS2",
-            "lat": 13.08 + random.uniform(-0.005, 0.005),
-            "lon": 80.27 + random.uniform(-0.005, 0.005),
-        })
-
-    # Yellow zone: mid-range or moderate wait
-    for i in range(3):
-        station_data.append({
-            "Station": f"Yellow Station {i+1}",
-            "Avg_Wait": random.randint(10, 20),
-            "Available_Slots": random.randint(1, 4),
-            "Charger_Type": "CCS2",
-            "lat": 13.08 + random.uniform(0.008, 0.015),
-            "lon": 80.27 + random.uniform(0.008, 0.015),
-        })
-
-    # Red zone: far or higher wait time or fewer slots
-    for i in range(3):
-        station_data.append({
-            "Station": f"Red Station {i+1}",
-            "Avg_Wait": random.randint(20, 35),
-            "Available_Slots": random.randint(1, 2),
-            "Charger_Type": "CCS2",
-            "lat": 13.08 + random.uniform(0.02, 0.03),
-            "lon": 80.27 + random.uniform(0.02, 0.03),
-        })
-
-    # Extra random stations (other types, for realism)
-    for i in range(6):
-        station_data.append({
-            "Station": f"Extra Station {i+1}",
+            "Station": f"Station {i+1}",
             "Avg_Wait": random.randint(5, 30),
-            "Available_Slots": random.randint(0, 3),
-            "Charger_Type": random.choice(["Type2", "CHAdeMO", "Bharat DC"]),
+            "Available_Slots": random.randint(0, 5),
+            "Charger_Type": random.choice(["CCS2", "Type2", "Bharat DC", "CHAdeMO"]),
             "lat": 13.08 + random.uniform(-0.03, 0.03),
             "lon": 80.27 + random.uniform(-0.03, 0.03),
         })
-
     return pd.DataFrame(station_data)
 
 def user_dashboard():
