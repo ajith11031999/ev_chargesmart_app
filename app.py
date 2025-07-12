@@ -84,16 +84,19 @@ def get_sample_stations(user_type="user"):
             "lon": 80.27 + random.uniform(-0.03, 0.03),
         })
     return pd.DataFrame(station_data)
+
 def user_dashboard():
     import plotly.express as px
     from sklearn.neighbors import NearestNeighbors
+    import folium
+    from streamlit_folium import st_folium
 
     st.title("🔌 Smart EV Recommendation Dashboard")
     st.button("🚪 Logout", on_click=logout)
 
     # User EV context
     battery_percent = 60
-    total_range = 200  # in km
+    total_range = 200
     current_range = battery_percent / 100 * total_range
     green_limit = current_range * 0.66
     yellow_limit = current_range * 0.85
@@ -106,8 +109,12 @@ def user_dashboard():
     🔌 **Plug Type:** {user_plug_type}
     """)
 
-    # Load station data
-    df = get_sample_stations()
+    # ❗ Load station data once per session
+    if "station_data" not in st.session_state:
+        st.session_state.station_data = get_sample_stations()
+    df = st.session_state.station_data.copy()
+
+    # Calculate distances
     df["Distance"] = df.apply(lambda row: haversine(user_lat, user_lon, row["lat"], row["lon"]), axis=1)
 
     # Filter compatible stations
@@ -121,14 +128,13 @@ def user_dashboard():
         st.error("⚠️ No compatible charging stations found.")
         return
 
-    # Fit KNN model
+    # Fit KNN for nearest station prediction
     knn = NearestNeighbors(n_neighbors=min(5, len(compatible_df)))
     knn.fit(compatible_df[["Distance", "Avg_Wait"]])
     _, indices = knn.kneighbors([[0, 0]])
-
     recommended_stations = compatible_df.iloc[indices[0]].copy()
 
-    # Zone color logic
+    # Zone assignment
     def assign_zone(row):
         if row["Distance"] <= green_limit:
             return "Green"
@@ -141,10 +147,7 @@ def user_dashboard():
 
     st.subheader("📍 Recommended Charging Stations")
 
-    # Plot user and recommended stations on map
-    import folium
-    from streamlit_folium import st_folium
-
+    # Show station map
     m = folium.Map(location=[user_lat, user_lon], zoom_start=14)
     folium.Marker([user_lat, user_lon], tooltip="You", icon=folium.Icon(color="blue")).add_to(m)
 
@@ -157,6 +160,7 @@ def user_dashboard():
 
     station_map = st_folium(m, width=700, height=450)
 
+    # Interaction
     clicked_station = None
     if station_map and station_map.get("last_object_clicked_tooltip"):
         tooltip = station_map["last_object_clicked_tooltip"]
@@ -165,7 +169,7 @@ def user_dashboard():
     if clicked_station:
         selected = recommended_stations[recommended_stations["Station"] == clicked_station].iloc[0]
 
-        # Dynamic wait time chart
+        # Wait time prediction
         wait_df = pd.DataFrame({
             "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
             "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
@@ -182,13 +186,11 @@ def user_dashboard():
 ⏳ **Current Wait:** {selected['Avg_Wait']} mins
         """)
 
-        # Booking
         st.subheader("🕒 Book a Time Slot")
         slot = st.selectbox("Choose a time slot", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
         if st.button("✅ Confirm Booking"):
             st.success(f"Booking confirmed for **{clicked_station}** at **{slot}**!")
 
-        # Google Maps
         st.subheader("🗺️ Navigate to Station")
         google_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
         st.markdown(f"[📍 Get Directions in Google Maps]({google_url})", unsafe_allow_html=True)
@@ -196,6 +198,10 @@ def user_dashboard():
     else:
         st.warning("👆 Click on a station marker on the map to view wait time & book.")
 
+    # Optional refresh
+    if st.button("🔁 Refresh Station Data"):
+        del st.session_state["station_data"]
+        st.rerun()
 
 def business_dashboard():
     st.title("🏢 Business Charging Station Dashboard")
