@@ -83,12 +83,15 @@ def get_sample_stations(user_type="user"):
         })
     return pd.DataFrame(station_data)
 def user_dashboard():
+    import plotly.express as px
+    from sklearn.neighbors import NearestNeighbors
+
     st.title("🔌 Smart EV Recommendation Dashboard")
     st.button("🚪 Logout", on_click=logout)
 
-    # Simulated User Info
+    # User EV context
     battery_percent = 60
-    total_range = 200  # km
+    total_range = 200  # in km
     current_range = battery_percent / 100 * total_range
     green_limit = current_range * 0.66
     yellow_limit = current_range * 0.85
@@ -97,55 +100,101 @@ def user_dashboard():
 
     st.markdown(f"""
     🔋 **Battery:** {battery_percent}%  
-    🛣️ **Range Left:** {int(current_range)} km  
-    🔌 **Charger Type:** {user_plug_type}
+    🛣️ **Estimated Range:** {int(current_range)} km  
+    🔌 **Plug Type:** {user_plug_type}
     """)
 
+    # Load station data
     df = get_sample_stations()
     df["Distance"] = df.apply(lambda row: haversine(user_lat, user_lon, row["lat"], row["lon"]), axis=1)
 
-    def get_zone(row):
-        if row["Distance"] > yellow_limit:
-            return "Red"
-        elif row["Distance"] <= green_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
+    # Filter compatible stations
+    compatible_df = df[
+        (df["Charger_Type"] == user_plug_type) &
+        (df["Available_Slots"] > 0) &
+        (df["Avg_Wait"] <= 30)
+    ].copy()
+
+    if compatible_df.empty:
+        st.error("⚠️ No compatible charging stations found.")
+        return
+
+    # Fit KNN model
+    knn = NearestNeighbors(n_neighbors=min(5, len(compatible_df)))
+    knn.fit(compatible_df[["Distance", "Avg_Wait"]])
+    _, indices = knn.kneighbors([[0, 0]])
+
+    recommended_stations = compatible_df.iloc[indices[0]].copy()
+
+    # Zone color logic
+    def assign_zone(row):
+        if row["Distance"] <= green_limit:
             return "Green"
-        elif row["Distance"] <= yellow_limit and row["Available_Slots"] > 0 and row["Charger_Type"] == user_plug_type and row["Avg_Wait"] <= 30:
+        elif row["Distance"] <= yellow_limit:
             return "Yellow"
-        return "Red"
+        else:
+            return "Red"
+    recommended_stations["Zone"] = recommended_stations.apply(assign_zone, axis=1)
+    color_map = {"Green": "green", "Yellow": "orange", "Red": "red"}
 
-    df["Zone"] = df.apply(get_zone, axis=1)
+    st.subheader("📍 Recommended Charging Stations")
 
-    st.subheader("📍 Nearby Charging Stations (Recommended)")
-    st.map(df[df["Zone"] != "Red"].rename(columns={"lat": "latitude", "lon": "longitude"}))
+    # Plot user and recommended stations on map
+    import folium
+    from streamlit_folium import st_folium
 
-    clicked = st.selectbox("⬇️ Select a Station", df["Station"])
-    selected = df[df["Station"] == clicked].iloc[0]
+    m = folium.Map(location=[user_lat, user_lon], zoom_start=14)
+    folium.Marker([user_lat, user_lon], tooltip="You", icon=folium.Icon(color="blue")).add_to(m)
 
-    wait_df = pd.DataFrame({
-        "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
-        "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
-    })
-    st.subheader(f"📊 Wait Time Forecast: {clicked}")
-    fig = px.line(wait_df, x="Time Slot", y="Wait Time", markers=True)
-    st.plotly_chart(fig, use_container_width=True)
+    for _, row in recommended_stations.iterrows():
+        folium.Marker(
+            [row["lat"], row["lon"]],
+            tooltip=f"{row['Station']} ({row['Zone']})",
+            icon=folium.Icon(color=color_map[row["Zone"]])
+        ).add_to(m)
 
-    st.info(f"""
+    station_map = st_folium(m, width=700, height=450)
+
+    clicked_station = None
+    if station_map and station_map.get("last_object_clicked_tooltip"):
+        tooltip = station_map["last_object_clicked_tooltip"]
+        clicked_station = tooltip.split(" (")[0]
+
+    if clicked_station:
+        selected = recommended_stations[recommended_stations["Station"] == clicked_station].iloc[0]
+
+        # Dynamic wait time chart
+        wait_df = pd.DataFrame({
+            "Time Slot": ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"],
+            "Wait Time": [selected["Avg_Wait"] + random.randint(-2, 4) for _ in range(5)]
+        })
+        st.subheader(f"📊 Wait Time Prediction: {clicked_station}")
+        fig = px.line(wait_df, x="Time Slot", y="Wait Time", markers=True)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.info(f"""
 📍 **Distance:** {selected['Distance']:.1f} km  
 🔌 **Charger Type:** {selected['Charger_Type']}  
 🟢 **Zone:** {selected['Zone']}  
 🅿️ **Available Slots:** {selected['Available_Slots']}  
 ⏳ **Current Wait:** {selected['Avg_Wait']} mins
-    """)
+        """)
 
-    st.subheader("🕒 Book a Time Slot")
-    slot = st.selectbox("Choose a time slot", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
-    if st.button("✅ Book Now"):
-        st.success(f"Booked **{clicked}** at **{slot}**!")
+        # Booking
+        st.subheader("🕒 Book a Time Slot")
+        slot = st.selectbox("Choose a time slot", ["8-10AM", "10-12PM", "12-2PM", "2-4PM", "4-6PM"])
+        if st.button("✅ Confirm Booking"):
+            st.success(f"Booking confirmed for **{clicked_station}** at **{slot}**!")
 
-    st.subheader("🗺️ Google Maps Navigation")
-    maps_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
-    st.markdown(f"[📍 Get Directions]({maps_url})", unsafe_allow_html=True)
-    
+        # Google Maps
+        st.subheader("🗺️ Navigate to Station")
+        google_url = f"https://www.google.com/maps/dir/{user_lat},{user_lon}/{selected['lat']},{selected['lon']}"
+        st.markdown(f"[📍 Get Directions in Google Maps]({google_url})", unsafe_allow_html=True)
+
+    else:
+        st.warning("👆 Click on a station marker on the map to view wait time & book.")
+
+
 def business_dashboard():
     st.title("🏢 Business Charging Station Dashboard")
     st.button("🚪 Logout", on_click=logout)
